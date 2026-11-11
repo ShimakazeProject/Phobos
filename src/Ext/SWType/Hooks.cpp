@@ -14,6 +14,7 @@ DEFINE_HOOK(0x6CC390, SuperClass_Launch, 0x6)
 	return handled ? 0x6CDE40 : 0;
 }
 
+static std::tuple<SuperClass*, CellStruct, int> lastFired { nullptr, CellStruct::Empty, -1 };
 // Ares hooked at 0x6CC390 and jumped to 0x6CDE40
 // If a super is not handled by Ares however, we do it at the original entry point
 DEFINE_HOOK_AGAIN(0x6CC390, SuperClass_Place_FireExt, 0x6)
@@ -23,9 +24,16 @@ DEFINE_HOOK(0x6CDE40, SuperClass_Place_FireExt, 0x3)
 	GET_STACK(CellStruct const* const, pCell, 0x4);
 	// GET_STACK(bool const, isPlayer, 0x8);
 
+	const int frame = Unsorted::CurrentFrame;
 	// Check if the SuperClass pointer is valid and not corrupted.
 	if (pSuper && VTable::Get(pSuper) == SuperClass::AbsVTable)
-		SWTypeExt::FireSuperWeaponExt(pSuper, *pCell);
+	{
+		if (lastFired != std::make_tuple(pSuper, *pCell, frame))
+		{
+			SWTypeExt::FireSuperWeaponExt(pSuper, *pCell);
+			lastFired = { pSuper, *pCell, frame };
+		}
+	}
 	else
 		Debug::Log(__FUNCTION__": Hook entered with an invalid or corrupt SuperClass pointer.");
 
